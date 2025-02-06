@@ -1,12 +1,12 @@
 import { PortalClient } from '@abernatskiy/portal-client';
 import { Logger as PinoLogger, pino } from 'pino';
-import { StateManager } from './state_manager';
+import { State } from './state';
 
 type Logger = PinoLogger;
 
 export type DatasourceOptions<Args extends {}> = {
   portal: PortalClient;
-  stateManager?: StateManager;
+  state?: State;
   logger?: Logger;
 } & Args;
 
@@ -16,10 +16,10 @@ export interface Datasource<T = unknown> {
 
 export abstract class AbstractDatasource<Args extends {}, Res = unknown>
   implements Datasource<Res> {
+  logger: Logger;
+
   constructor(public readonly options: DatasourceOptions<Args>) {
-    if (!options.logger) {
-      options.logger = pino();
-    }
+    this.logger = options.logger || pino();
   }
 
   abstract stream(): Promise<ReadableStream<Res>>;

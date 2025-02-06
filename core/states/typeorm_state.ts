@@ -1,36 +1,8 @@
-import fs from 'node:fs/promises';
 import { HashAndNumber } from '@abernatskiy/portal-client/src/query';
 import { DataSource, EntityManager } from 'typeorm';
+import { State } from '../state';
 
-export interface StateManager {
-  setState(...args: any[]): Promise<unknown>;
-
-  getState(): Promise<number | undefined>;
-}
-
-export class FileStateManager implements StateManager {
-  constructor(private readonly filepath: string) {
-  }
-
-  async setState(state: HashAndNumber) {
-    await fs.writeFile(this.filepath, state.toString());
-  }
-
-  async getState() {
-    try {
-      const state = await fs.readFile(this.filepath, 'utf8');
-      if (state) return parseInt(state, 10);
-    } catch (e: any) {
-      if (e.code !== 'ENOENT') {
-        throw e;
-      }
-    }
-
-    return;
-  }
-}
-
-export class TypeormStateManager implements StateManager {
+export class TypeormState implements State {
   constructor(
     private db: DataSource,
     private options: { table: string; namespace?: string; id?: string },
@@ -43,14 +15,14 @@ export class TypeormStateManager implements StateManager {
     };
   }
 
-  async setState(manager: EntityManager, state: HashAndNumber) {
+  async set(manager: EntityManager, state: HashAndNumber) {
     await manager.query(
       `UPDATE "${this.options.namespace}"."${this.options.table}" SET block_number = $1 WHERE id = $2`,
       [state.number, this.options.id],
     );
   }
 
-  async getState() {
+  async get() {
     try {
       const state = await this.db.query(
         `SELECT block_number FROM "${this.options.namespace}"."${this.options.table}" WHERE id = $1 LIMIT 1`,

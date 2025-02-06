@@ -18,9 +18,9 @@ export class UniswapDatasource
   extends AbstractDatasource<{ args: { from: number; pairs?: string[] } }>
   implements Datasource {
   async stream(): Promise<ReadableStream<UniswapSwap[]>> {
-    const {args, stateManager} = this.options;
+    const {args, state} = this.options;
 
-    const fromState = stateManager ? await stateManager.getState() : null;
+    const fromState = state ? await state.get() : null;
 
     console.log(`staring from block ${fromState || args.from}`);
 

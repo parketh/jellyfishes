@@ -14,11 +14,11 @@ export class Erc20Datasource
   extends AbstractDatasource<{ args: { from: number; contracts: string[] } }>
   implements Datasource {
   async stream(): Promise<ReadableStream<Erc20Event[]>> {
-    const {args, stateManager} = this.options;
+    const {args, state} = this.options;
 
-    const fromState = stateManager ? await stateManager.getState() : null;
+    const fromState = state ? await state.get() : null;
 
-    console.log(`staring from block ${fromState || args.from}`);
+    this.logger.debug(`starting from block ${fromState || args.from}`);
 
     const source = this.options.portal.getFinalizedStream({
       type: 'evm',
@@ -50,7 +50,7 @@ export class Erc20Datasource
       logs: [
         {
           address: this.options.args.contracts,
-          topic0: ['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'],
+          topic0: [abi_events.Transfer.topic],
         },
       ],
     });
