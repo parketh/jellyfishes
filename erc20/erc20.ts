@@ -8,25 +8,29 @@ export type Erc20Event = {
   amount: bigint;
   token_address: string;
   block: HashAndNumber;
+  timestamp: Date;
+  tx: string;
 };
 
 export class Erc20Datasource
-  extends AbstractDatasource<{ args: { from: number; contracts: string[] } }>
+  extends AbstractDatasource<{ args: { fromBlock: number; contracts: string[] } }>
   implements Datasource {
   async stream(): Promise<ReadableStream<Erc20Event[]>> {
     const {args, state} = this.options;
 
     const fromState = state ? await state.get() : null;
+    const fromBlock = fromState ? fromState.number : args.fromBlock;
 
-    this.logger.debug(`starting from block ${fromState || args.from}`);
+    this.logger.debug(`starting from block ${fromBlock} ${fromState ? 'from state' : 'from args'}`);
 
     const source = this.options.portal.getFinalizedStream({
       type: 'evm',
-      fromBlock: fromState || args.from,
+      fromBlock: fromBlock,
       fields: {
         block: {
           number: true,
           hash: true,
+          timestamp: true,
         },
         transaction: {
           from: true,
@@ -62,16 +66,17 @@ export class Erc20Datasource
             if (!block.logs) return [];
 
             return block.logs
-              .filter((l) => abi_events.Transfer.is(l))
-              .map((l): Erc20Event => {
+              .filter((l: any) => abi_events.Transfer.is(l))
+              .map((l: any): Erc20Event => {
                 const data = abi_events.Transfer.decode(l);
-
                 return {
                   from: data.from,
                   to: data.to,
                   amount: data.value,
                   token_address: l.address,
                   block: block.header,
+                  timestamp: new Date(block.header.timestamp * 1000),
+                  tx: l.transactionHash,
                 };
               });
           });

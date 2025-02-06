@@ -1,29 +1,18 @@
 import { PortalClient } from '@abernatskiy/portal-client';
-import { pino } from 'pino';
 import { Erc20Datasource } from '../erc20/erc20';
+import { createLogger } from './utils';
 
 async function main() {
   const portal = new PortalClient({
     url: 'https://portal.sqd.dev/datasets/ethereum-mainnet',
   });
 
-  const logger = pino({
-    level: 'debug',
-
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        singleLine: true,
-      },
-    },
-
-    msgPrefix: '',
-  }).child({datasource: 'erc20'});
+  const logger = createLogger('erc20');
 
   const ds = new Erc20Datasource({
     portal,
     args: {
-      from: 4634748,
+      fromBlock: 4634748,
       contracts: ['0xdac17f958d2ee523a2206206994597c13d831ec7'],
     },
     logger,

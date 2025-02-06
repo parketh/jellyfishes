@@ -19,7 +19,9 @@ export abstract class AbstractDatasource<Args extends {}, Res = unknown>
   logger: Logger;
 
   constructor(public readonly options: DatasourceOptions<Args>) {
-    this.logger = options.logger || pino();
+    this.logger =
+      options.logger ||
+      pino({base: null, messageKey: 'message', level: process.env.LOG_LEVEL || 'info'});
   }
 
   abstract stream(): Promise<ReadableStream<Res>>;

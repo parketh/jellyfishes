@@ -4,7 +4,7 @@ volumes:
   rmq-db:
 
 services:
-  jelly_pg:
+  pg:
     image: postgres:15-alpine
     container_name: jelly_pg
     environment:
@@ -15,4 +15,14 @@ services:
       - '6432:5432'
     volumes:
       - subsquid-db:/var/lib/postgresql/data:delegated
-      - ./local/local.postgres.conf:/etc/postgresql.conf:delegated
+
+  ch:
+    image: bitnami/clickhouse:latest
+    container_name: jelly_ch
+    ports:
+      - '8123:8123'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - clickhouse-db:/bitnami/clickhouse
+      - ./local/clickhouse/transactions.xml:/opt/bitnami/clickhouse/etc/conf.d/transactions.xml

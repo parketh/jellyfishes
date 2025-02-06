@@ -12,25 +12,28 @@ export type UniswapSwap = {
   sqrtPriceX96: bigint;
   contract_address: string;
   block: HashAndNumber;
+  timestamp: Date;
 };
 
 export class UniswapDatasource
-  extends AbstractDatasource<{ args: { from: number; pairs?: string[] } }>
+  extends AbstractDatasource<{ args: { fromBlock: number; pairs?: string[] } }>
   implements Datasource {
   async stream(): Promise<ReadableStream<UniswapSwap[]>> {
     const {args, state} = this.options;
 
     const fromState = state ? await state.get() : null;
+    const fromBlock = fromState ? fromState.number : args.fromBlock;
 
-    console.log(`staring from block ${fromState || args.from}`);
+    console.log(`staring from block ${fromBlock}`);
 
     const source = this.options.portal.getFinalizedStream({
       type: 'evm',
-      fromBlock: fromState || args.from,
+      fromBlock: fromBlock,
       fields: {
         block: {
           number: true,
           hash: true,
+          timestamp: true,
         },
         transaction: {
           from: true,
@@ -79,6 +82,7 @@ export class UniswapDatasource
                   sqrtPriceX96: data.sqrtPriceX96,
                   contract_address: l.address,
                   block: block.header,
+                  timestamp: new Date(block.header.timestamp),
                 };
               });
           });

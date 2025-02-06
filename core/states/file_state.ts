@@ -7,13 +7,15 @@ export class FileState implements State {
   }
 
   async set(state: HashAndNumber) {
-    await fs.writeFile(this.filepath, state.toString());
+    await fs.writeFile(this.filepath, JSON.stringify(state.toString));
   }
 
   async get() {
     try {
       const state = await fs.readFile(this.filepath, 'utf8');
-      if (state) return parseInt(state, 10);
+      if (state) {
+        return JSON.parse(state);
+      }
     } catch (e: any) {
       if (e.code !== 'ENOENT') {
         throw e;
