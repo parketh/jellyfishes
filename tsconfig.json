@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2021",
+    "pretty": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "importHelpers": true,
+    "types": [
+      "vitest/globals"
+    ],
+    "strict": true,
+    "allowJs": true,
+    "noImplicitAny": false,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "allowSyntheticDefaultImports": true,
+    "strictPropertyInitialization": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@libs/*": [
+        "libs/*"
+      ],
+      "@api/*": [
+        "api/*"
+      ],
+      "@apps/common/*": [
+        "apps/common/*"
+      ],
+      "@apps": [
+        "apps/index"
+      ]
+    }
+  },
+  "exclude": [
+    "helm-charts",
+    "node_modules",
+    "ci",
+    "local",
+    "dumps",
+    "deployment"
+  ]
+}

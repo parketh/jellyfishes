@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.13.1",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447",
+  "dependencies": {
+    "@abernatskiy/http-client": "^9.0.1",
+    "@abernatskiy/portal-client": "^9.0.0",
+    "@subsquid/evm-abi": "^0.3.1",
+    "@subsquid/evm-codec": "^0.3.0",
+    "@subsquid/http-client": "^1.6.0",
+    "@subsquid/portal-client": "^0.0.1-portal-api.4494d2",
+    "pg": "^8.13.1",
+    "pino": "^9.6.0",
+    "typeorm": "^0.3.20"
+  },
+  "peerDependencies": {
+    "typeorm": "^0.3.20"
+  }
+}
