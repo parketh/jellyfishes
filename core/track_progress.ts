@@ -1,6 +1,6 @@
-import { PortalClient } from '@abernatskiy/portal-client';
-import { HashAndNumber } from '@abernatskiy/portal-client/src/query';
-import { Throttler } from '@abernatskiy/util-internal';
+import { PortalClient } from '@subsquid/portal-client';
+import { Throttler } from '@subsquid/util-internal';
+import { BlockRef } from './abstract_stream';
 
 type Progress = {
   blocks: {
@@ -21,8 +21,8 @@ export type TrackProgressOptions = {
 };
 
 export class TrackProgress {
-  last: { block: HashAndNumber; ts: number };
-  current: HashAndNumber;
+  last: { block: BlockRef; ts: number };
+  current: BlockRef;
 
   constructor({portal, intervalSeconds = 10, onProgress}: TrackProgressOptions) {
     const headCall = new Throttler(() => portal.getFinalizedHeight(), 60_000);
@@ -50,7 +50,7 @@ export class TrackProgress {
     }, intervalSeconds * 1000);
   }
 
-  track(block: HashAndNumber) {
+  track(block: BlockRef) {
     this.current = block;
   }
 }

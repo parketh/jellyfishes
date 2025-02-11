@@ -1,10 +1,10 @@
-import { PortalClient } from '@abernatskiy/portal-client';
+import { PortalClient } from '@subsquid/portal-client';
 import { DataSource as TypeormDatabase } from 'typeorm';
 
-import { mergeConcurrently } from '../core/merge_datasources';
+import { mergeConcurrently } from '../core/merge_streams';
 
-import { Erc20Datasource } from '../erc20/erc20';
-import { UniswapDatasource } from '../uniswap/uniswap';
+import { Erc20Stream } from '../streams/erc20/erc20_stream';
+import { UniswapStream } from '../streams/uniswap/uniswap_stream';
 
 import { TypeormState } from '../core/states/typeorm_state';
 import { last } from './utils';
@@ -40,7 +40,7 @@ async function main() {
    * Merge two datasources: Erc20 and Uniswap into one.
    */
   const ds = mergeConcurrently(
-    new Erc20Datasource({
+    new Erc20Stream({
       portal,
       args: {
         fromBlock: 4634748,
@@ -48,7 +48,7 @@ async function main() {
       },
       state: erc20state,
     }),
-    new UniswapDatasource({
+    new UniswapStream({
       portal,
       args: {
         fromBlock: 4634748,

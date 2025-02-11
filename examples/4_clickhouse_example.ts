@@ -1,8 +1,8 @@
-import { PortalClient } from '@abernatskiy/portal-client';
 import { createClient } from '@clickhouse/client';
+import { PortalClient } from '@subsquid/portal-client';
 import { ClickhouseState } from '../core/states/clickhouse_state';
 import { TrackProgress } from '../core/track_progress';
-import { Erc20Datasource } from '../erc20/erc20';
+import { Erc20Stream } from '../streams/erc20/erc20_stream';
 import { createLogger, formatNumber, last } from './utils';
 
 async function main() {
@@ -33,7 +33,7 @@ async function main() {
   /**
    * Initialize Erc20 datasource with the following parameters:
    */
-  const ds = new Erc20Datasource({
+  const ds = new Erc20Stream({
     portal,
     args: {
       fromBlock: 4634748,

@@ -1,5 +1,5 @@
-import { PortalClient } from '@abernatskiy/portal-client';
-import { Erc20Datasource } from '../erc20/erc20';
+import { PortalClient } from '@subsquid/portal-client';
+import { Erc20Stream } from '../streams/erc20/erc20_stream';
 import { createLogger } from './utils';
 
 async function main() {
@@ -9,7 +9,7 @@ async function main() {
 
   const logger = createLogger('erc20');
 
-  const ds = new Erc20Datasource({
+  const ds = new Erc20Stream({
     portal,
     args: {
       fromBlock: 4634748,

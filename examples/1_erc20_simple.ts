@@ -1,12 +1,12 @@
-import { PortalClient } from '@abernatskiy/portal-client';
-import { Erc20Datasource } from '../erc20/erc20';
+import { PortalClient } from '@subsquid/portal-client';
+import { Erc20Stream } from '../streams/erc20/erc20_stream';
 
 async function main() {
   const portal = new PortalClient({
     url: 'https://portal.sqd.dev/datasets/ethereum-mainnet',
   });
 
-  const ds = new Erc20Datasource({
+  const ds = new Erc20Stream({
     portal,
     args: {
       fromBlock: 4634748,

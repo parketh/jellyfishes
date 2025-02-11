@@ -1,10 +1,10 @@
-import { HashAndNumber } from '@abernatskiy/portal-client/src/query';
 import { ClickHouseError } from '@clickhouse/client';
 import { NodeClickHouseClient } from '@clickhouse/client/dist/client';
+import { BlockRef } from '../abstract_stream';
 import { State } from '../state';
 
 export class ClickhouseState implements State {
-  private lastState?: HashAndNumber;
+  private lastState?: BlockRef;
 
   constructor(
     private client: NodeClickHouseClient,
@@ -17,7 +17,7 @@ export class ClickhouseState implements State {
     };
   }
 
-  async set(state: HashAndNumber) {
+  async set(state: BlockRef) {
     await this.client.insert({
       table: this.options.table,
       values: [

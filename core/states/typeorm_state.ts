@@ -1,5 +1,5 @@
-import { HashAndNumber } from '@abernatskiy/portal-client/src/query';
 import { DataSource, EntityManager } from 'typeorm';
+import { BlockRef } from '../abstract_stream';
 import { State } from '../state';
 
 export class TypeormState implements State {
@@ -14,7 +14,7 @@ export class TypeormState implements State {
     };
   }
 
-  async set(manager: EntityManager, state: HashAndNumber) {
+  async set(manager: EntityManager, state: BlockRef) {
     await manager.query(
       `UPDATE "${this.options.namespace}"."${this.options.table}" SET block_number = $1, block_hash = $2 WHERE id = $3`,
       [state.number, state.hash, this.options.id],

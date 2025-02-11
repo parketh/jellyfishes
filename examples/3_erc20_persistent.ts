@@ -1,7 +1,7 @@
-import { PortalClient } from '@abernatskiy/portal-client';
+import { PortalClient } from '@subsquid/portal-client';
 import { DataSource as TypeormDatabase } from 'typeorm';
 import { TypeormState } from '../core/states/typeorm_state';
-import { Erc20Datasource } from '../erc20/erc20';
+import { Erc20Stream } from '../streams/erc20/erc20_stream';
 import { last } from './utils';
 
 async function main() {
@@ -29,12 +29,16 @@ async function main() {
     table: 'status_erc20',
   });
 
-  const ds = new Erc20Datasource({
+  const ds = new Erc20Stream({
     portal,
     args: {
       fromBlock: 4634748,
+      toBlock: 15844479,
       contracts: ['0xdac17f958d2ee523a2206206994597c13d831ec7'],
     },
+
+    // 'sqd/streams'
+    // forkManager
     state,
   });
 

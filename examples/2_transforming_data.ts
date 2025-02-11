@@ -1,5 +1,5 @@
-import { PortalClient } from '@abernatskiy/portal-client';
-import { Erc20Datasource, Erc20Event } from '../erc20/erc20';
+import { PortalClient } from '@subsquid/portal-client';
+import { Erc20Event, Erc20Stream } from '../streams/erc20/erc20_stream';
 import { last } from './utils';
 
 const Contracts = {
@@ -34,7 +34,7 @@ async function main() {
     url: 'https://portal.sqd.dev/datasets/arbitrum-one',
   });
 
-  const ds = new Erc20Datasource({
+  const ds = new Erc20Stream({
     portal,
     args: {
       fromBlock: 200_120_655,

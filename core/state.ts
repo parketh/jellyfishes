@@ -1,7 +1,7 @@
-import { HashAndNumber } from '@abernatskiy/portal-client/src/query';
+import { BlockRef } from './abstract_stream';
 
 export interface State {
   set(...args: any[]): Promise<unknown>;
 
-  get(): Promise<HashAndNumber | undefined>;
+  get(): Promise<BlockRef | undefined>;
 }
