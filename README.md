@@ -1,10 +1,12 @@
 ## Run
 
 ```bash
+# Install dependencies
 yarn install
 
-docker compose up -d
+# Run Clickhouse
+docker compose up -d ch 
 
-yarn ts-node examples/1_erc20_simple.ts
-
+# Run swaps indexing
+yarn ts-node solana_dexes/swaps/cli.ts
 ```
