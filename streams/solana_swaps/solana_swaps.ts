@@ -53,8 +53,6 @@ export class SolanaSwapsStream extends AbstractStream<
 
     const offset = await this.getState({number: args.fromBlock, hash: ''});
 
-    this.logger.debug(`starting from block ${offset.number}`);
-
     const types = args.type || ['orca_whirlpool', 'meteora_damm', 'meteora_dlmm', 'radium_clmm'];
 
     const source = this.portal.getFinalizedStream({

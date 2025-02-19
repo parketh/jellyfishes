@@ -1,8 +1,14 @@
 import path from 'node:path';
+import * as process from 'node:process';
 import { ClickhouseState } from '../../core/states/clickhouse_state';
 import { createLogger, formatNumber } from '../../examples/utils';
 import { SolanaSwapsStream } from '../../streams/solana_swaps/solana_swaps';
-import { createClickhouseClient, ensureTables, toUnixTime } from '../clickhouse';
+import {
+  cleanAllBeforeOffset,
+  createClickhouseClient,
+  ensureTables,
+  toUnixTime,
+} from '../clickhouse';
 import { getSortFunction } from './util';
 
 const DECIMALS = {
@@ -32,7 +38,7 @@ async function main() {
     args: {
       // fromBlock: 240_000_000,
       fromBlock: 242_936_377,
-      toBlock: 242_936_378,
+      // toBlock: 242_936_378,
       tokens: TRACKED_TOKENS,
     },
     logger,
@@ -40,7 +46,17 @@ async function main() {
       table: 'solana_sync_status',
       id: 'dex_swaps',
     }),
-    onStart: ({current, initial}) => {
+    onStart: async ({current, initial}) => {
+      /**
+       * Clean all data before the current offset.
+       * There is a small chance if the stream is interrupted, the data will be duplicated.
+       * We just clean it up at the start to avoid duplicates.
+       */
+      await cleanAllBeforeOffset(
+        {clickhouse, logger},
+        {table: 'solana_swaps_raw', column: 'block_number', offset: current.number},
+      );
+
       if (initial.number === current.number) {
         logger.info(`Syncing from ${formatNumber(current.number)}`);
         return;
@@ -61,31 +77,33 @@ async function main() {
   for await (const swaps of await ds.stream()) {
     await clickhouse.insert({
       table: 'solana_swaps_raw',
-      values: swaps.map((s) => {
-        /**
-         * Sort tokens naturally to preserve the same pair order, i.e., ORCA/SOL and never SOL/ORCA.
-         */
-        const needTokenSwap = sortTokens(s.input.mint, s.output.mint);
+      values: swaps
+        .filter((s) => s.input.amount > 0 && s.output.amount > 0)
+        .map((s) => {
+          /**
+           * Sort tokens naturally to preserve the same pair order, i.e., ORCA/SOL and never SOL/ORCA.
+           */
+          const needTokenSwap = sortTokens(s.input.mint, s.output.mint);
 
-        const tokenA = !needTokenSwap ? s.input : s.output;
-        const tokenB = !needTokenSwap ? s.output : s.input;
+          const tokenA = !needTokenSwap ? s.input : s.output;
+          const tokenB = !needTokenSwap ? s.output : s.input;
 
-        return {
-          dex: s.type,
-          block_number: s.block.number,
-          transaction_hash: s.transaction.hash,
-          transaction_index: s.transaction.index,
-          instruction_address: s.instruction.address,
-          account: s.account,
-          token_a: tokenA.mint,
-          token_b: tokenB.mint,
-          a_to_b: !needTokenSwap,
-          amount_a: denominate(tokenA.amount, tokenA.mint).toString(),
-          amount_b: denominate(tokenB.amount, tokenB.mint).toString(),
-          timestamp: toUnixTime(s.timestamp),
-          sign: 1,
-        };
-      }),
+          return {
+            dex: s.type,
+            block_number: s.block.number,
+            transaction_hash: s.transaction.hash,
+            transaction_index: s.transaction.index,
+            instruction_address: s.instruction.address,
+            account: s.account,
+            token_a: tokenA.mint,
+            token_b: tokenB.mint,
+            a_to_b: !needTokenSwap,
+            amount_a: denominate(tokenA.amount, tokenA.mint).toString(),
+            amount_b: denominate(tokenB.amount, tokenB.mint).toString(),
+            timestamp: toUnixTime(s.timestamp),
+            sign: 1,
+          };
+        }),
       format: 'JSONEachRow',
     });
 

@@ -28,8 +28,6 @@ export class Erc20Stream extends AbstractStream<
       hash: '',
     });
 
-    this.logger.debug(`starting from block ${offset.number}`);
-
     const source = this.portal.getFinalizedStream({
       type: 'evm',
       fromBlock: offset.number,

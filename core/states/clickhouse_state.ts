@@ -83,28 +83,4 @@ export class ClickhouseState extends AbstractState implements State {
       throw e;
     }
   }
-
-  async cleanAllBeforeOffset(
-    clickhouse: ClickHouseClient,
-    {tables, offset, column}: { tables: string[]; offset: number; column: string },
-  ) {
-    await Promise.all(
-      tables.map(async (table) => {
-        const res = await clickhouse.query({
-          query: `SELECT *
-                  FROM ${table}
-                  WHERE ${column} >= {o:String}`,
-          format: 'JSONEachRow',
-          query_params: {o: offset},
-        });
-
-        const rows = await res.json();
-        if (rows.length === 0) return;
-
-        console.log(`rolling back ${rows.length} rows from ${table}`);
-
-        throw new Error('not implemented');
-      }),
-    );
-  }
 }

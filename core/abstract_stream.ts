@@ -98,7 +98,7 @@ export abstract class AbstractStream<
     const current = this.decodeOffset(state.current);
     const initial = this.decodeOffset(state.initial);
 
-    this.options.onStart?.({
+    await this.options.onStart?.({
       state: this.options.state,
       current,
       initial,

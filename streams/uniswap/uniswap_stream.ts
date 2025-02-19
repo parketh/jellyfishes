@@ -27,8 +27,6 @@ export class UniswapStream extends AbstractStream<
 
     const offset = await this.getState({number: args.fromBlock, hash: ''});
 
-    this.logger.debug(`starting from block ${offset.number}`);
-
     const source = this.portal.getFinalizedStream({
       type: 'evm',
       fromBlock: offset.number,

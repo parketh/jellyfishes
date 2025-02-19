@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as process from 'node:process';
 import { ClickHouseClient, createClient } from '@clickhouse/client';
+import { Logger } from '../core/abstract_stream';
 
 export async function loadSqlFiles(directoryOrFile: string): Promise<string[]> {
   let sqlFiles: string[] = [];
@@ -51,4 +52,36 @@ export function toUnixTime(time: Date | string | number): number {
   }
 
   return Math.floor(time / 1000);
+}
+
+export async function cleanAllBeforeOffset(
+  {clickhouse, logger}: { clickhouse: ClickHouseClient; logger: Logger },
+  {table, offset, column}: { table: string | string[]; offset: number; column: string },
+) {
+  const tables = typeof table === 'string' ? [table] : table;
+
+  await Promise.all(
+    tables.map(async (table) => {
+      const res = await clickhouse.query({
+        query: `SELECT *
+                FROM ${table} FINAL
+                WHERE ${column} >= {current_offset:UInt32}`,
+        format: 'JSONEachRow',
+        query_params: {current_offset: offset},
+      });
+
+      const rows = await res.json();
+      if (rows.length === 0) {
+        return;
+      }
+
+      logger.info(`Rolling back ${rows.length} rows from ${table}`);
+
+      await clickhouse.insert({
+        table,
+        values: rows.map((row: any) => ({...row, sign: -1})),
+        format: 'JSONEachRow',
+      });
+    }),
+  );
 }
