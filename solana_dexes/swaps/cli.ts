@@ -34,13 +34,12 @@ async function main() {
       fromBlock: 242_936_377,
       toBlock: 242_936_378,
       tokens: TRACKED_TOKENS,
-      // type: ['meteora_damm'],
     },
     logger,
-    // state: new ClickhouseState(clickhouse, {
-    //   table: 'solana_sync_status',
-    //   id: 'dex_swaps',
-    // }),
+    state: new ClickhouseState(clickhouse, {
+      table: 'solana_sync_status',
+      id: 'dex_swaps',
+    }),
     onStart: ({current, initial}) => {
       if (initial.number === current.number) {
         logger.info(`Syncing from ${formatNumber(current.number)}`);
@@ -60,12 +59,6 @@ async function main() {
   await ensureTables(clickhouse, path.join(__dirname, 'swaps.sql'));
 
   for await (const swaps of await ds.stream()) {
-    // const d = swaps.filter((s) => s.block.number === 242_936_377);
-    // if (d.length) {
-    //   console.log('-----');
-    //   console.log(d);
-    // }
-
     await clickhouse.insert({
       table: 'solana_swaps_raw',
       values: swaps.map((s) => {
@@ -96,7 +89,7 @@ async function main() {
       format: 'JSONEachRow',
     });
 
-    // await ds.ack(swaps);
+    await ds.ack(swaps);
   }
 }
 
