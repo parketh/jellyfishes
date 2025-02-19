@@ -1,68 +1,49 @@
-import assert from 'assert';
 import { getInstructionDescriptor } from '@subsquid/solana-stream';
 import { AbstractStream, BlockRef } from '../../core/abstract_stream';
+import * as clmm from './abi/clmm/index';
 import * as damm from './abi/damm/index';
 import * as dlmm from './abi/dlmm/index';
-import * as tokenProgram from './abi/tokenProgram/index';
 import * as whirlpool from './abi/whirlpool/index';
+import { handleMeteoraDamm, handleMeteoraDlmm } from './handle_meteora';
+import { handleWhirlpool } from './handle_orca';
+import { handleRadiumClmm } from './handle_radium';
+import { getTransactionHash } from './utils';
+
+export type SwapType = 'orca_whirlpool' | 'meteora_damm' | 'meteora_dlmm' | 'radium_clmm';
 
 export type SolanaSwap = {
   id: string;
-  dex: 'orca' | 'meteora';
-  program: 'whirlpool' | 'damm' | 'dlmm';
+  type: SwapType;
   account: string;
   transaction: { hash: string; index: number };
-  input: { amount: bigint; mint: string; vault: string };
-  output: { amount: bigint; mint: string; vault: string };
+  input: {
+    amount: bigint;
+    mint: string;
+    //vault: string };
+  };
+  output: {
+    amount: bigint;
+    mint: string;
+    // vault: string
+  };
   instruction: { address: number[] };
   block: BlockRef;
   offset: string;
   timestamp: Date;
 };
 
-export function extractInnerInstructions(instruction: any, instructions: any[]) {
-  return instructions.filter(
-    (i) =>
-      i.transactionIndex === instruction.transactionIndex &&
-      i.instructionAddress.length === instruction.instructionAddress.length + 1 &&
-      instruction.instructionAddress.every((a, j) => a === i.instructionAddress[j]),
-  );
-}
-
-function decodeTokenTransfers(instruction: any, instructions: any[]) {
-  const transfers = instructions.filter(
-    (i) =>
-      i.transactionIndex === instruction.transactionIndex &&
-      i.instructionAddress.length === instruction.instructionAddress.length + 1 &&
-      instruction.instructionAddress.every((a, j) => a === i.instructionAddress[j]),
-  );
-
-  return transfers.map((i) => tokenProgram.instructions.transfer.decode(i));
-}
-
-function getTransactionHash(ins: any, block: any) {
-  const tx = block.transactions.find((t) => t.transactionIndex === ins.transactionIndex);
-  assert(tx, 'transaction not found');
-
-  return tx.signatures[0];
-}
+export type SolanaSwapTransfer = Pick<SolanaSwap, 'input' | 'output' | 'account' | 'type'>;
 
 function isProgramInstruction(ins: any, programId: string, d8: string) {
   return ins.programId === programId && getInstructionDescriptor(ins) === d8;
 }
-
-function getInstructionBalances(ins: any, block: any) {
-  return block.tokenBalances?.filter((t) => t.transactionIndex === ins.transactionIndex) || [];
-}
-
-export type Dex = 'orca' | 'meteora_damm' | 'meteora_dlmm';
 
 export class SolanaSwapsStream extends AbstractStream<
   {
     fromBlock: number;
     toBlock?: number;
     tokens?: string[];
-    dex?: Dex[];
+    type?: SwapType[];
   },
   SolanaSwap,
   { number: number; hash: string }
@@ -74,11 +55,7 @@ export class SolanaSwapsStream extends AbstractStream<
 
     this.logger.debug(`starting from block ${offset.number}`);
 
-    const dexes = args.dex || [
-      'orca',
-      // 'meteora_damm',
-      // 'meteora_dlmm'
-    ];
+    const types = args.type || ['orca_whirlpool', 'meteora_damm', 'meteora_dlmm', 'radium_clmm'];
 
     const source = this.portal.getFinalizedStream({
       type: 'solana',
@@ -108,9 +85,9 @@ export class SolanaSwapsStream extends AbstractStream<
           postMint: true,
         },
       },
-      instructions: dexes.map((dex) => {
-        switch (dex) {
-          case 'orca':
+      instructions: types.map((type) => {
+        switch (type) {
+          case 'orca_whirlpool':
             return {
               programId: [whirlpool.programId], // where executed by Whirlpool program
               d8: [whirlpool.instructions.swap.d8],
@@ -137,6 +114,15 @@ export class SolanaSwapsStream extends AbstractStream<
               transaction: true,
               transactionTokenBalances: true,
             };
+          case 'radium_clmm':
+            return {
+              programId: [clmm.programId],
+              d8: [clmm.instructions.swap.d8],
+              isCommitted: true,
+              innerInstructions: true,
+              transaction: true,
+              transactionTokenBalances: true,
+            };
         }
       }),
     });
@@ -156,191 +142,45 @@ export class SolanaSwapsStream extends AbstractStream<
             });
 
             for (const ins of block.instructions) {
+              let swap: SolanaSwapTransfer | null = null;
               if (isProgramInstruction(ins, whirlpool.programId, whirlpool.instructions.swap.d8)) {
-                const swap = whirlpool.instructions.swap.decode(ins);
-                const [src, dest] = decodeTokenTransfers(ins, block.instructions);
-
-                const tokenBalances = getInstructionBalances(ins, block);
-                const inputMint = tokenBalances.find(
-                  (balance) => balance.account === src.accounts.destination,
-                )?.preMint;
-                assert(inputMint != null, 'inputMint is null');
-                const inputAmount = src.data.amount;
-
-                const outputMint = tokenBalances.find(
-                  (balance) => balance.account === dest.accounts.source,
-                )?.preMint;
-                assert(outputMint != null, 'outputMint is null');
-                const outputAmount = dest.data.amount;
-
-                if (
-                  args.tokens &&
-                  !args.tokens.includes(inputMint) &&
-                  !args.tokens.includes(outputMint)
-                ) {
-                  continue;
-                }
-
-                const txHash = getTransactionHash(ins, block);
-
-                const [inputVault, outputVault] = swap.data.aToB
-                  ? [swap.accounts.tokenVaultA, swap.accounts.tokenVaultB]
-                  : [swap.accounts.tokenVaultB, swap.accounts.tokenVaultA];
-
-                swaps.push({
-                  id: `${txHash}/${ins.transactionIndex}`,
-                  dex: 'orca',
-                  program: 'whirlpool',
-                  block: {number: block.header.number, hash: block.header.hash},
-                  instruction: {
-                    address: ins.instructionAddress,
-                  },
-                  account: src.accounts.authority,
-                  input: {
-                    amount: inputAmount,
-                    mint: inputMint,
-                    vault: inputVault,
-                  },
-                  output: {
-                    amount: outputAmount,
-                    mint: outputMint,
-                    vault: outputVault,
-                  },
-                  transaction: {
-                    hash: txHash,
-                    index: ins.transactionIndex,
-                  },
-                  timestamp: new Date(block.header.timestamp * 1000),
-                  offset,
-                });
+                swap = handleWhirlpool(ins, block);
               } else if (isProgramInstruction(ins, damm.programId, damm.instructions.swap.d8)) {
-                const swap = damm.instructions.swap.decode(ins);
-                const txHash = getTransactionHash(ins, block);
-                console.dir(swap, {depth: null});
-                console.dir(txHash, {depth: null});
-
-                const [src, dest] = decodeTokenTransfers(ins, block.instructions);
-
-                console.log(src, dest);
-
-                const tokenBalances = getInstructionBalances(ins, block);
-                const inputMint = tokenBalances.find(
-                  (balance) => balance.account === src.accounts.destination,
-                )?.preMint;
-                assert(inputMint != null, 'inputMint is null');
-                const inputAmount = src.data.amount;
-
-                const outputMint = tokenBalances.find(
-                  (balance) => balance.account === dest.accounts.source,
-                )?.preMint;
-                assert(outputMint != null, 'outputMint is null');
-                const outputAmount = dest.data.amount;
-
-                console.log(inputMint, outputMint, ' --> ', inputAmount, outputAmount);
-                process.exit(1);
-                //
-                // console.log(swap.)
-                //   if (
-                //     args.tokens &&
-                //     !args.tokens.includes(swap.accounts.) &&
-                //     !args.tokens.includes(swap.tokenY)
-                //   ) {
-                //     continue;
-                //   }
-                //
-                //   const {
-                //     pool: poolAddress,
-                //     tokenAMint,
-                //     tokenBMint,
-                //     aTokenVault,
-                //     bTokenVault,
-                //     aVaultLpMint,
-                //     bVaultLpMint
-                //   } = accounts
-                //
-                //   const transfers = decodeTokenTransfers(ins, block.instructions);
-                //   let depositX = 0n,
-                //     withdrawX = 0n;
-                //   let depositY = 0n,
-                //     withdrawY = 0n;
-                //   let isXtoY = false;
-                //
-                //   for (const t of transfers) {
-                //     if (t.accounts.destination === swap.tokenXVault) {
-                //       depositX += t.data.amount;
-                //       isXtoY = true;
-                //     }
-                //     if (t.accounts.source === swap.tokenXVault) {
-                //       withdrawX += t.data.amount;
-                //       isXtoY = false;
-                //     }
-                //     if (t.accounts.destination === swap.tokenYVault) {
-                //       depositY += t.data.amount;
-                //       isXtoY = false;
-                //     }
-                //     if (t.accounts.source === swap.tokenYVault) {
-                //       withdrawY += t.data.amount;
-                //       isXtoY = true;
-                //     }
-                //   }
-                //   const netFlowX = depositX - withdrawX;
-                //   const netFlowY = depositY - withdrawY;
-                //
-                //   let amountIn = 0n;
-                //   let amountOut = 0n;
-                //   let inMint = '';
-                //   let inVault = '';
-                //   let outMint = '';
-                //   let outVault = '';
-                //
-                //   // X→Y:
-                //   if (isXtoY) {
-                //     amountIn = netFlowX;
-                //     amountOut = -netFlowY;
-                //     inMint = swap.tokenX;
-                //     inVault = swap.tokenXVault;
-                //     outMint = swap.tokenY;
-                //     outVault = swap.tokenYVault;
-                //   }
-                //   // Y→X:
-                //   else {
-                //     amountIn = netFlowY;
-                //     amountOut = -netFlowX;
-                //     inMint = swap.tokenY;
-                //     inVault = swap.tokenYVault;
-                //     outMint = swap.tokenX;
-                //     outVault = swap.tokenXVault;
-                //   }
-                //
-                //   const txHash = getTransactionHash(ins, block);
-                //
-                //   swaps.push({
-                //     id: `${txHash}/${ins.transactionIndex}`,
-                //     dex: 'orca',
-                //     program: 'whirlpool',
-                //     block: {number: block.header.number, hash: block.header.hash},
-                //     instruction: {
-                //       address: ins.instructionAddress,
-                //     },
-                //     account: transfers[0].accounts.authority,
-                //     input: {
-                //       amount: amountIn,
-                //       mint: inMint,
-                //       vault: inVault,
-                //     },
-                //     output: {
-                //       amount: amountOut,
-                //       mint: outMint,
-                //       vault: outVault,
-                //     },
-                //     transaction: {
-                //       hash: txHash,
-                //       index: ins.transactionIndex,
-                //     },
-                //     timestamp: new Date(block.header.timestamp * 1000),
-                //     offset,
-                //   });
+                swap = handleMeteoraDamm(this.logger, ins, block);
+              } else if (isProgramInstruction(ins, dlmm.programId, dlmm.instructions.swap.d8)) {
+                swap = handleMeteoraDlmm(ins, block);
+              } else if (isProgramInstruction(ins, clmm.programId, clmm.instructions.swap.d8)) {
+                swap = handleRadiumClmm(ins, block);
               }
+
+              if (!swap) continue;
+              else if (
+                args.tokens &&
+                !args.tokens.includes(swap.input.mint) &&
+                !args.tokens.includes(swap.output.mint)
+              ) {
+                continue;
+              }
+
+              const txHash = getTransactionHash(ins, block);
+
+              swaps.push({
+                id: `${txHash}/${ins.transactionIndex}`,
+                type: swap.type,
+                block: {number: block.header.number, hash: block.header.hash},
+                instruction: {
+                  address: ins.instructionAddress,
+                },
+                input: swap.input,
+                output: swap.output,
+                account: swap.account,
+                transaction: {
+                  hash: txHash,
+                  index: ins.transactionIndex,
+                },
+                timestamp: new Date(block.header.timestamp * 1000),
+                offset,
+              });
             }
 
             return swaps;

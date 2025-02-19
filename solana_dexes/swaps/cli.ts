@@ -30,13 +30,17 @@ async function main() {
   const ds = new SolanaSwapsStream({
     portal: 'https://portal.sqd.dev/datasets/solana-mainnet',
     args: {
-      fromBlock: 240_000_000,
+      // fromBlock: 240_000_000,
+      fromBlock: 242_936_377,
+      toBlock: 242_936_378,
       tokens: TRACKED_TOKENS,
+      // type: ['meteora_damm'],
     },
-    state: new ClickhouseState(clickhouse, {
-      table: 'solana_sync_status',
-      id: 'dex_swaps',
-    }),
+    logger,
+    // state: new ClickhouseState(clickhouse, {
+    //   table: 'solana_sync_status',
+    //   id: 'dex_swaps',
+    // }),
     onStart: ({current, initial}) => {
       if (initial.number === current.number) {
         logger.info(`Syncing from ${formatNumber(current.number)}`);
@@ -56,6 +60,12 @@ async function main() {
   await ensureTables(clickhouse, path.join(__dirname, 'swaps.sql'));
 
   for await (const swaps of await ds.stream()) {
+    // const d = swaps.filter((s) => s.block.number === 242_936_377);
+    // if (d.length) {
+    //   console.log('-----');
+    //   console.log(d);
+    // }
+
     await clickhouse.insert({
       table: 'solana_swaps_raw',
       values: swaps.map((s) => {
@@ -68,10 +78,11 @@ async function main() {
         const tokenB = !needTokenSwap ? s.output : s.input;
 
         return {
-          dex: s.dex,
+          dex: s.type,
           block_number: s.block.number,
           transaction_hash: s.transaction.hash,
           transaction_index: s.transaction.index,
+          instruction_address: s.instruction.address,
           account: s.account,
           token_a: tokenA.mint,
           token_b: tokenB.mint,
@@ -85,7 +96,7 @@ async function main() {
       format: 'JSONEachRow',
     });
 
-    await ds.ack(swaps);
+    // await ds.ack(swaps);
   }
 }
 

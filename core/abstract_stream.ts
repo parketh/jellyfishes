@@ -4,7 +4,7 @@ import { Logger as PinoLogger, pino } from 'pino';
 import { State } from './state';
 import { Progress, TrackProgress } from './track_progress';
 
-type Logger = PinoLogger;
+export type Logger = PinoLogger;
 
 export type BlockRef = {
   number: number;
@@ -40,7 +40,7 @@ export abstract class AbstractStream<
   logger: Logger;
   progress?: TrackProgress;
 
-  private getLatestOffset: () => Promise<DecodedOffset>;
+  private readonly getLatestOffset: () => Promise<DecodedOffset>;
 
   constructor(protected readonly options: StreamOptions<Args, DecodedOffset>) {
     this.logger =

@@ -108,7 +108,7 @@ export class SolanaMintStream extends AbstractStream<
                 mintAuthority: mint.data.mintAuthority,
                 freezeAuthority: mint.data.freezeAuthority,
                 transaction: {
-                  id: txId,
+                  hash: txId,
                   index: ins.transactionIndex,
                 },
                 block: {number: block.header.number, hash: block.header.hash},
