@@ -17,33 +17,31 @@ CREATE TABLE IF NOT EXISTS solana_swaps_raw
       PARTITION BY toYYYYMM(timestamp) -- DATA WILL BE SPLIT BY MONTH
       ORDER BY (block_number, transaction_index, instruction_address);
 
-CREATE TABLE IF NOT EXISTS solana_swaps_candles_5m
-(
-    timestamp DateTime,
-    token_a   String,
-    token_b   String,
-    open      Float64,
-    high      Float64,
-    low       Float64,
-    close     Float64,
-    count     UInt32,
-    traders   UInt32,
-    volume_b  Float64
-) ENGINE = ReplacingMergeTree() ORDER BY (timestamp, token_a, token_b);
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS solana_swaps_candles_5m_mv
-    TO solana_swaps_candles_5m
+-- SELECT timestamp,
+--        token_a,
+--        token_b,
+--        argMinMerge(open) as open,
+--        maxMerge(high)         as high,
+--        minMerge(low)          as low,
+--        argMaxMerge(close) as close,
+--        sumMerge(volume_b) as volume
+-- from solana_swaps_candles_5m_mv
+-- GROUP BY timestamp, token_a, token_b
+-- ORDER BY timestamp ASC
+
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS solana_swaps_candles_daily ENGINE AggregatingMergeTree() ORDER BY (timestamp, token_a, token_b)
 AS
-SELECT toStartOfFiveMinute(timestamp)   as timestamp,
+SELECT toStartOfDay(timestamp)                     as timestamp,
        token_a,
        token_b,
-       first_value(amount_b / amount_a) as open,
-       max(amount_b / amount_a)         as high,
-       min(amount_b / amount_a)         as low,
-       last_value(amount_b / amount_a)  as close,
-       count()                          as count,
-       uniq(account)                    as traders,
-       sum(amount_b)                    as volume_b
+       argMinState(amount_b / amount_a, timestamp) AS open,    -- no reorg support
+       maxState(amount_b / amount_a)               AS high,    -- no reorg support
+       minState(amount_b / amount_a)               AS low,     -- no reorg support
+       argMaxState(amount_b / amount_a, timestamp) AS close,   -- no reorg support
+       sumState(sign)                              AS count,   -- supports blockhain reorgs
+       sumState(amount_b * sign)                   AS volume_b -- supports blockhain reorgs
 from solana_swaps_raw
 WHERE amount_a > 0
   AND amount_b > 0
