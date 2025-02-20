@@ -39,8 +39,9 @@ export async function ensureTables(clickhouse: ClickHouseClient, dir: string) {
 
 export function createClickhouseClient() {
   return createClient({
-    url: 'http://localhost:8123',
-    password: '',
+    url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
+    username: process.env.CLICKHOUSE_USER || 'default',
+    password: process.env.CLICKHOUSE_PASSWORD || '',
   });
 }
 
