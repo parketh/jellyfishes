@@ -93,7 +93,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS solana_portfolio_daily_mva TO solana_port
 SELECT toStartOfDay(timestamp)                  as timestamp,
        account,
        token_a                                  as token,
-       sum(if(a_to_b, -1, 1) * amount_b * sign) as amount
+       sum(if(a_to_b, -1, 1) * amount_a * sign) as amount
 FROM solana_swaps_raw
 GROUP BY timestamp, account, token;
 
