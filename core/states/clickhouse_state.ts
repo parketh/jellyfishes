@@ -63,9 +63,11 @@ export class ClickhouseState extends AbstractState implements State {
 
       const [row] = await res.json<{ initial: string; offset: string }>();
 
-      this.initial = row.initial;
+      if (row) {
+        this.initial = row.initial;
 
-      if (row) return {current: row.offset, initial: row.initial};
+        return {current: row.offset, initial: row.initial};
+      }
 
       return;
     } catch (e: unknown) {

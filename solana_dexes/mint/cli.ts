@@ -17,7 +17,7 @@ async function main() {
     },
     logger,
     state: new ClickhouseState(clickhouse, {
-      table: 'solana_dex_status',
+      table: 'solana_sync_status',
       id: 'mint',
     }),
     onProgress: ({state, interval}) => {

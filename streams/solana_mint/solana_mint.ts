@@ -1,10 +1,12 @@
-import assert from 'assert';
-import { getInstructionDescriptor } from '@subsquid/solana-stream';
+import { getInstructionData } from '@subsquid/solana-stream';
+import { toHex } from '@subsquid/util-internal-hex';
 import { AbstractStream, BlockRef, TransactionRef } from '../../core/abstract_stream';
+import { getTransactionHash } from '../solana_swaps/utils';
 import * as tokenProgram from './abi/tokenProgram/index';
 
 export type SolanaMint = {
   account: string;
+  version: 1 | 2;
   decimals: number;
   mintAuthority: string;
   freezeAuthority?: string;
@@ -19,7 +21,8 @@ export class SolanaMintStream extends AbstractStream<
     fromBlock: number;
     toBlock?: number;
   },
-  SolanaMint
+  SolanaMint,
+  { number: number; hash: string }
 > {
   async stream(): Promise<ReadableStream<SolanaMint[]>> {
     const {args} = this.options;
@@ -57,7 +60,10 @@ export class SolanaMintStream extends AbstractStream<
       instructions: [
         {
           programId: [tokenProgram.programId], // where executed by Whirlpool program
-          d1: [tokenProgram.instructions.initializeMint2.d1], // have first 8 bytes of .data equal to swap descriptor
+          d1: [
+            tokenProgram.instructions.initializeMint.d1,
+            tokenProgram.instructions.initializeMint2.d1,
+          ], // have first 8 bytes of .data equal to swap descriptor
           isCommitted: true, // where successfully committed
           innerInstructions: true, // inner instructions
           transaction: true, // transaction, that executed the given instruction
@@ -85,28 +91,29 @@ export class SolanaMintStream extends AbstractStream<
                 continue;
               }
 
+              const desc = toHex(getInstructionData(ins)).slice(0, 4);
               if (
-                getInstructionDescriptor(ins) !==
-                `${tokenProgram.instructions.initializeMint2.d1}0606c5c1ce638d`
+                desc !== tokenProgram.instructions.initializeMint.d1 &&
+                desc !== tokenProgram.instructions.initializeMint2.d1
               ) {
                 continue;
               }
 
-              const mint = tokenProgram.instructions.initializeMint2.decode(ins);
+              const v1 = desc === tokenProgram.instructions.initializeMint.d1;
+              const mint = v1
+                ? tokenProgram.instructions.initializeMint.decode(ins)
+                : tokenProgram.instructions.initializeMint2.decode(ins);
 
-              const tx = block.transactions.find(
-                (t) => t.transactionIndex === ins.transactionIndex,
-              );
-              const txId = tx.signatures[0];
-              assert(tx, 'transaction not found');
+              const txHash = getTransactionHash(ins, block);
 
               mints.push({
                 account: mint.accounts.mint,
+                version: v1 ? 1 : 2,
                 decimals: mint.data.decimals,
                 mintAuthority: mint.data.mintAuthority,
                 freezeAuthority: mint.data.freezeAuthority,
                 transaction: {
-                  hash: txId,
+                  hash: txHash,
                   index: ins.transactionIndex,
                 },
                 block: {number: block.header.number, hash: block.header.hash},

@@ -32,17 +32,25 @@ export async function ensureTables(clickhouse: ClickHouseClient, dir: string) {
       console.error(table.trim());
       console.error(`======================`);
       console.error(`Failed to create table: ${e.message}`);
+      if (!e.message) console.error(e);
+
       process.exit(1);
     }
   }
 }
 
 export function createClickhouseClient() {
-  return createClient({
+  const options = {
     url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
     username: process.env.CLICKHOUSE_USER || 'default',
     password: process.env.CLICKHOUSE_PASSWORD || '',
-  });
+  };
+
+  // console.log(
+  //   `Connecting to Clickhouse at ${options.url} using user ${options.username} and password ${options.password ? options.password.replaceAll(/\./g, '*') : '"-"'}`,
+  // );
+
+  return createClient(options);
 }
 
 export function toUnixTime(time: Date | string | number): number {
