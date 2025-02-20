@@ -1,4 +1,4 @@
-import { ClickHouseClient, ClickHouseError } from '@clickhouse/client';
+import { ClickHouseError } from '@clickhouse/client';
 import { NodeClickHouseClient } from '@clickhouse/client/dist/client';
 import { Offset } from '../abstract_stream';
 import { AbstractState, State } from '../state';
@@ -67,9 +67,12 @@ export class ClickhouseState extends AbstractState implements State {
         this.initial = row.initial;
 
         return {current: row.offset, initial: row.initial};
-      }
+      } else {
+        this.initial = defaultValue;
+        await this.saveOffset(defaultValue);
 
-      return;
+        return;
+      }
     } catch (e: unknown) {
       if (e instanceof ClickHouseError && e.type === 'UNKNOWN_TABLE') {
         await this.client.command({
