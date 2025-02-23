@@ -1,11 +1,8 @@
-CREATE TABLE IF NOT EXISTS solana_tokens
-(
-    timestamp        DateTime CODEC (DoubleDelta, ZSTD),
-    account          String,
-    transaction_hash String,
-    block_number     UInt32,
-    decimals         UInt8,
-    mint_authority   String
-) ENGINE = ReplacingMergeTree()
-      PARTITION BY toYYYYMM(timestamp)
-      ORDER BY (block_number);
+CREATE TABLE IF NOT EXISTS solana_tokens (
+    timestamp        TIMESTAMP,
+    account          VARCHAR,
+    transaction_hash VARCHAR,
+    block_number     INTEGER,
+    decimals         SMALLINT,
+    mint_authority   VARCHAR
+);

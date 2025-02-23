@@ -1,6 +1,0 @@
-<clickhouse>
-    <logger>
-        <level>warning</level>
-    </logger>
-    <allow_experimental_transactions>1</allow_experimental_transactions>
-</clickhouse>

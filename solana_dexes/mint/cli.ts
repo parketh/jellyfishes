@@ -1,36 +1,49 @@
-import path from 'node:path';
-import { ClickhouseState } from '../../core/states/clickhouse_state';
-import { createLogger, formatNumber } from '../../examples/utils';
-import { SolanaMintStream } from '../../streams/solana_mint/solana_mint';
-import { createClickhouseClient, ensureTables, toUnixTime } from '../clickhouse';
+import path from "node:path"
+import { createLogger, formatNumber } from "../../examples/utils"
+import { SolanaMintStream } from "../../streams/solana_mint/solana_mint"
+import { createPostgresClient, ensureTables, toUnixTime } from "../postgres"
+import { PostgresState } from "core/states/postgres_state"
+import { DataSource } from "typeorm"
 
 async function main() {
-  const clickhouse = createClickhouseClient();
-  const logger = createLogger('solana_tokens');
+  const pgClient = createPostgresClient()
+  const logger = createLogger("solana_tokens")
 
-  await ensureTables(clickhouse, path.join(__dirname, 'mints.sql'));
+  const db = await new DataSource({
+    type: "postgres",
+    host: "localhost",
+    port: 6432,
+    username: "postgres",
+    password: "postgres",
+    database: "postgres",
+  }).initialize()
+
+  await ensureTables(pgClient, path.join(__dirname, "mints.sql"))
 
   const datasource = new SolanaMintStream({
-    portal: 'https://portal.sqd.dev/datasets/solana-mainnet',
+    portal: "https://portal.sqd.dev/datasets/solana-mainnet",
     args: {
       fromBlock: 240_000_000,
     },
     logger,
-    state: new ClickhouseState(clickhouse, {
-      table: 'solana_sync_status',
-      id: 'mint',
+    state: new PostgresState(db, {
+      table: "solana_sync_status",
+      id: "mint",
     }),
-    onProgress: ({state, interval}) => {
+    onProgress: ({ state, interval }) => {
       logger.info({
-        message: `${formatNumber(state.current)} / ${formatNumber(state.last)} (${formatNumber(state.percent)}%)`,
+        message: `${formatNumber(state.current)} / ${formatNumber(state.last)} (${formatNumber(
+          state.percent
+        )}%)`,
         speed: `${interval.processedPerSecond} blocks/second`,
-      });
+      })
     },
-  });
+  })
 
   for await (const mints of await datasource.stream()) {
-    await clickhouse.insert({
-      table: 'solana_tokens',
+    // TODO: refactor below to use PG interface
+    await pgClient.insert({
+      table: "solana_tokens",
       values: mints.map((m) => ({
         account: m.account,
         decimals: m.decimals,
@@ -39,11 +52,11 @@ async function main() {
         transaction_hash: m.transaction.hash,
         timestamp: toUnixTime(m.timestamp),
       })),
-      format: 'JSONEachRow',
-    });
+      format: "JSONEachRow",
+    })
 
-    await datasource.ack(mints);
+    await datasource.ack(mints)
   }
 }
 
-void main();
+void main()
